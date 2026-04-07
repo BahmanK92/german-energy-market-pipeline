@@ -1,0 +1,66 @@
+# ----------------------
+# Python
+# ----------------------
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ----------------------
+# Environment variables (secrets)
+# ----------------------
+.env
+.env.*
+
+# ----------------------
+# Jupyter Notebook
+# ----------------------
+.ipynb_checkpoints/
+
+# ----------------------
+# Pytest
+# ----------------------
+.pytest_cache/
+.coverage
+
+# ----------------------
+# Logs
+# ----------------------
+logs/
+*.log
+
+# ----------------------
+# Airflow
+# ----------------------
+airflow/logs/
+airflow/airflow.db
+
+# ----------------------
+# PostgreSQL (Docker volume if local)
+# ----------------------
+postgres_data/
+
+# ----------------------
+# Data files (optional - recommended to ignore)
+# ----------------------
+data/
+*.csv
+*.parquet
+
+# ----------------------
+# OS / System files
+# ----------------------
+.DS_Store
+Thumbs.db
+
+# ----------------------
+# VS Code
+# ----------------------
+.vscode/
+
+# ----------------------
+# Temporary files
+# ----------------------
+tmp/
+temp/
