@@ -1,0 +1,72 @@
+series:
+  price:
+    filter: 4169
+    region: DE-LU
+    resolution: hour
+    value_column: price_eur_mwh
+
+  load:
+    filter: 410
+    region: DE
+    resolution: hour
+    value_column: load_mw
+
+  residual_load_smard:
+    filter: 4359
+    region: DE
+    resolution: hour
+    value_column: residual_load_smard_mw
+
+  solar:
+    filter: 4068
+    region: DE
+    resolution: hour
+    value_column: solar_mw
+
+  wind_onshore:
+    filter: 4067
+    region: DE
+    resolution: hour
+    value_column: wind_onshore_mw
+
+  wind_offshore:
+    filter: 1225
+    region: DE
+    resolution: hour
+    value_column: wind_offshore_mw
+
+  biomass:
+    filter: 4066
+    region: DE
+    resolution: hour
+    value_column: biomass_mw
+
+  hydro:
+    filter: 1226
+    region: DE
+    resolution: hour
+    value_column: hydro_mw
+
+  lignite:
+    filter: 1223
+    region: DE
+    resolution: hour
+    value_column: lignite_mw
+
+  hard_coal:
+    filter: 4069
+    region: DE
+    resolution: hour
+    value_column: hard_coal_mw
+
+  gas:
+    filter: 4071
+    region: DE
+    resolution: hour
+    value_column: gas_mw
+
+  other_conventional:
+    filter: 1227
+    region: DE
+    resolution: hour
+    value_column: other_conventional_mw
