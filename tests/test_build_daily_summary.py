@@ -16,6 +16,7 @@ client = SmardClient()
 series_keys = [
     "price",
     "load",
+    "residual_load_smard",
     "solar",
     "wind_onshore",
     "wind_offshore",

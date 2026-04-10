@@ -9,7 +9,11 @@ def build_features(core_df: pd.DataFrame) -> pd.DataFrame:
     """
     Build Phase 1 feature columns from the core hourly table.
 
-    Expected columns may include:
+    Expected core columns may include:
+    - datetime_utc
+    - datetime_berlin
+    - date_berlin
+    - hour_of_day
     - price_eur_mwh
     - load_mw
     - solar_mw
@@ -21,22 +25,34 @@ def build_features(core_df: pd.DataFrame) -> pd.DataFrame:
     - hard_coal_mw
     - gas_mw
     - other_conventional_mw
-
-    The function is defensive:
-    if a source column is missing, it is treated as 0 for aggregate features.
+    - residual_load_smard_mw
     """
     if core_df.empty:
         logger.warning("Received empty core_df in build_features")
         return core_df.copy()
+
+    required_time_columns = {
+        "datetime_utc",
+        "datetime_berlin",
+        "date_berlin",
+        "hour_of_day",
+    }
+    missing_time = required_time_columns - set(core_df.columns)
+    if missing_time:
+        raise ValueError(f"core_df missing required time columns: {missing_time}")
 
     df = core_df.copy()
 
     def series_or_zero(column_name: str) -> pd.Series:
         if column_name in df.columns:
             return pd.to_numeric(df[column_name], errors="coerce").fillna(0)
-        return pd.Series(0, index=df.index, dtype="float64")
+        return pd.Series(0.0, index=df.index)
 
-    # Base components
+    def series_or_na(column_name: str) -> pd.Series:
+        if column_name in df.columns:
+            return pd.to_numeric(df[column_name], errors="coerce")
+        return pd.Series(pd.NA, index=df.index, dtype="float64")
+
     solar = series_or_zero("solar_mw")
     wind_onshore = series_or_zero("wind_onshore_mw")
     wind_offshore = series_or_zero("wind_offshore_mw")
@@ -48,11 +64,8 @@ def build_features(core_df: pd.DataFrame) -> pd.DataFrame:
     gas = series_or_zero("gas_mw")
     other_conventional = series_or_zero("other_conventional_mw")
 
-    load = pd.to_numeric(df["load_mw"], errors="coerce") if "load_mw" in df.columns else pd.Series(
-        pd.NA, index=df.index, dtype="float64"
-    )
+    load = series_or_na("load_mw")
 
-    # Feature engineering
     df["coal_mw"] = lignite + hard_coal
 
     df["renewable_generation_mw"] = (
@@ -60,31 +73,22 @@ def build_features(core_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     df["fossil_generation_mw"] = (
-        lignite + hard_coal + gas + other_conventional
+        df["coal_mw"] + gas + other_conventional
     )
 
     df["total_generation_selected_mw"] = (
         df["renewable_generation_mw"] + df["fossil_generation_mw"]
     )
 
-    # Shares: avoid division by zero
     denominator = df["total_generation_selected_mw"].replace(0, pd.NA)
 
     df["renewable_share"] = df["renewable_generation_mw"] / denominator
     df["fossil_share"] = df["fossil_generation_mw"] / denominator
 
-    # Residual load using engineered renewable generation
-    if "load_mw" in df.columns:
-        df["residual_load_mw"] = load - df["renewable_generation_mw"]
-    else:
-        df["residual_load_mw"] = pd.NA
+    df["residual_load_mw"] = load - df["renewable_generation_mw"]
 
-    # Time features
-    if "datetime_berlin" in df.columns:
-        df["day_of_week"] = df["datetime_berlin"].dt.dayofweek
-        df["is_weekend"] = df["day_of_week"].isin([5, 6])
-    else:
-        raise ValueError("core_df must contain 'datetime_berlin'")
+    df["day_of_week"] = df["datetime_berlin"].dt.dayofweek
+    df["is_weekend"] = df["day_of_week"].isin([5, 6])
 
     logger.info(
         "Built features for %s rows; output has %s columns",

@@ -16,6 +16,7 @@ client = SmardClient()
 series_keys = [
     "price",
     "load",
+    "residual_load_smard",
     "solar",
     "wind_onshore",
     "wind_offshore",
@@ -42,7 +43,10 @@ features_df = build_features(core_df)
 print("\n--- FEATURES TABLE PREVIEW ---")
 preview_cols = [
     "datetime_berlin",
+    "date_berlin",
+    "hour_of_day",
     "load_mw",
+    "residual_load_smard_mw",
     "solar_mw",
     "wind_onshore_mw",
     "wind_offshore_mw",
