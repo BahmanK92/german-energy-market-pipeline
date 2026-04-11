@@ -76,7 +76,7 @@ def build_core_hourly_table(
     )
 
     # Rebuild helper time columns from datetime_utc to keep them consistent
-    core_df["datetime_berlin"] = core_df["datetime_utc"].dt.tz_convert("Europe/Berlin")
+    core_df["datetime_berlin"] = (core_df["datetime_utc"].dt.tz_convert("Europe/Berlin").dt.tz_localize(None))
     core_df["date_berlin"] = core_df["datetime_berlin"].dt.date
     core_df["hour_of_day"] = core_df["datetime_berlin"].dt.hour
 

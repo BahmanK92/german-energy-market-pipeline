@@ -71,7 +71,7 @@ def normalize_smard_payload(raw_batch: Dict) -> pd.DataFrame:
 
     # Parse datetime in UTC, then convert to Europe/Berlin
     df["datetime_utc"] = pd.to_datetime(df["timestamp_ms"], unit="ms", utc=True, errors="coerce")
-    df["datetime_berlin"] = df["datetime_utc"].dt.tz_convert("Europe/Berlin")
+    df["datetime_berlin"] = (df["datetime_utc"].dt.tz_convert("Europe/Berlin").dt.tz_localize(None))
 
     # Add date/time helper columns
     df["date_berlin"] = df["datetime_berlin"].dt.date

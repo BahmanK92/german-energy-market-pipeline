@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 PHASE1_SERIES_KEYS = [
     "price",
     "load",
+    "residual_load_smard",
     "solar",
     "wind_onshore",
     "wind_offshore",
