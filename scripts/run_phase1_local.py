@@ -1,10 +1,11 @@
 import logging
 
-from src.clients.smard_client import SmardClient
-from src.transform.normalize_smard_json import normalize_smard_payload
-from src.transform.build_core_hourly_table import build_core_hourly_table
-from src.transform.build_features import build_features
-from src.transform.build_daily_summary import build_daily_summary
+from scripts.backfill_smard import backfill_smard
+from scripts.build_core_from_raw import build_and_load_core_from_raw
+from scripts.build_features_from_core import build_and_load_features_from_core
+from scripts.build_daily_summary_from_features import (
+    build_and_load_daily_summary_from_features,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,84 +15,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-PHASE1_SERIES_KEYS = [
-    "price",
-    "load",
-    "residual_load_smard",
-    "solar",
-    "wind_onshore",
-    "wind_offshore",
-    "biomass",
-    "hydro",
-    "lignite",
-    "hard_coal",
-    "gas",
-    "other_conventional",
-]
-
-
-def choose_complete_batch_timestamp(client: SmardClient, series_key: str) -> int:
+def run_phase1_local() -> None:
     """
-    For local development, use the previous batch instead of the newest open batch.
-    This avoids partial future/incomplete data.
+    Run the DB-backed Phase 1 pipeline locally:
+
+    1. backfill raw SMARD data
+    2. build core.energy_hourly from raw
+    3. build mart.energy_features_hourly from core
+    4. build mart.energy_summary_daily from features
     """
-    timestamps = client.get_available_timestamps(series_key)
+    logger.info("Starting DB-backed local Phase 1 pipeline run")
 
-    if len(timestamps) < 2:
-        raise ValueError(f"Not enough timestamps available for series '{series_key}'")
+    backfill_smard()
+    build_and_load_core_from_raw()
+    build_and_load_features_from_core()
+    build_and_load_daily_summary_from_features()
 
-    return timestamps[-2]
-
-
-def run_phase1_local() -> tuple:
-    logger.info("Starting local Phase 1 pipeline run")
-
-    client = SmardClient()
-    normalized_batches = []
-
-    for series_key in PHASE1_SERIES_KEYS:
-        chosen_timestamp = choose_complete_batch_timestamp(client, series_key)
-        logger.info(
-            "Using batch timestamp %s for series '%s'",
-            chosen_timestamp,
-            series_key,
-        )
-
-        raw_batch = client.get_raw_series(series_key, chosen_timestamp)
-        normalized_df = normalize_smard_payload(raw_batch)
-        normalized_batches.append(normalized_df)
-
-    core_df = build_core_hourly_table(normalized_batches, how="outer")
-    features_df = build_features(core_df)
-    daily_df = build_daily_summary(features_df)
-
-    logger.info("Phase 1 local run finished successfully")
-    return core_df, features_df, daily_df
+    logger.info("DB-backed local Phase 1 pipeline run finished successfully")
 
 
 if __name__ == "__main__":
-    core_df, features_df, daily_df = run_phase1_local()
-
-    print("\n=== CORE TABLE ===")
-    print(core_df.head(5).to_string())
-    print("\ncore shape:", core_df.shape)
-
-    print("\n=== FEATURES TABLE ===")
-    feature_preview_cols = [
-        "datetime_berlin",
-        "load_mw",
-        "renewable_generation_mw",
-        "fossil_generation_mw",
-        "renewable_share",
-        "fossil_share",
-        "residual_load_mw",
-        "day_of_week",
-        "is_weekend",
-    ]
-    print(features_df[feature_preview_cols].head(5).to_string())
-    print("\nfeatures shape:", features_df.shape)
-
-    print("\n=== DAILY SUMMARY ===")
-    print(daily_df.to_string(index=False))
-    print("\ndaily shape:", daily_df.shape)
+    run_phase1_local()
     
