@@ -19,8 +19,16 @@ def build_core_hourly_from_raw(
         series_keys = [
             "price",
             "load",
+            "residual_load_smard",
             "solar",
-        ]
+            "wind_onshore",
+            "wind_offshore",
+            "biomass",
+            "hydro",
+            "lignite",
+            "hard_coal",
+            "gas",
+            "other_conventional",]
 
     query = text(
         """

@@ -18,8 +18,16 @@ logger = logging.getLogger(__name__)
 DEFAULT_SERIES_KEYS = [
     "price",
     "load",
+    "residual_load_smard",
     "solar",
-]
+    "wind_onshore",
+    "wind_offshore",
+    "biomass",
+    "hydro",
+    "lignite",
+    "hard_coal",
+    "gas",
+    "other_conventional",]
 
 
 def choose_complete_batch_timestamps(
