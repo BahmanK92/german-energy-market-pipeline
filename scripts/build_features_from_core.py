@@ -2,7 +2,7 @@ import logging
 
 import pandas as pd
 
-from src.load.postgres import get_engine
+from src.load.postgres import get_engine, truncate_table
 from src.transform.build_features import build_features
 
 logging.basicConfig(
@@ -24,12 +24,15 @@ def build_and_load_features_from_core() -> None:
 
     features_df = build_features(core_df)
 
-    logger.info("Writing mart.energy_features_hourly ...")
+    logger.info("Truncating mart.energy_features_hourly ...")
+    truncate_table(engine=engine, table_name="energy_features_hourly", schema="mart")
+
+    logger.info("Appending rows into mart.energy_features_hourly ...")
     features_df.to_sql(
         name="energy_features_hourly",
         con=engine,
         schema="mart",
-        if_exists="replace",
+        if_exists="append",
         index=False,
         method="multi",
     )
