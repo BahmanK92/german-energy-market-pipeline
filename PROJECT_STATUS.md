@@ -1,72 +1,79 @@
-# Project: German Energy Market Data Pipeline (SMARD)
+# Project Status: German Energy Market Data Pipeline (SMARD)
 
-## 📌 Objective
+## Objective
 
 Build a production-style data pipeline for Germany’s electricity market using SMARD data.
-The pipeline will ingest, clean, transform, and aggregate hourly energy data into structured tables for analysis.
+
+Phase 1 goal:
+
+* ingest hourly SMARD data
+* store it in a raw PostgreSQL table
+* transform into a merged hourly dataset
+* build engineered feature tables
+* build daily summary tables
+* validate the pipeline locally
+
+Phase 2 will focus on analytics and modeling.
 
 ---
 
-## ⚙️ Environment Setup
+## Current Environment
 
 * OS: Windows + WSL2 (Ubuntu)
-* Development: Visual Studio Code (WSL mode)
-* Python: Python 3 (WSL) with virtual environment
-* Containers: Docker Desktop (WSL backend)
-* Orchestration: Apache Airflow (Docker)
+* Development: VS Code (WSL mode)
+* Python: virtual environment in WSL
 * Database: PostgreSQL (Docker)
+* Orchestration: Airflow planned (not yet active)
 
 ---
 
-## 📁 Project Structure (Initialized)
+## Current Architecture
 
-```
-german-energy-market-pipeline/
-├─ airflow/
-│  └─ dags/
-├─ config/
-├─ sql/
-├─ scripts/
-├─ src/
-│  ├─ clients/
-│  ├─ extract/
-│  ├─ load/
-│  ├─ transform/
-│  ├─ utils/
-│  └─ viz/
-├─ tests/
-├─ docs/
-├─ README.md
-├─ requirements.txt
-├─ docker-compose.yml
-├─ .env.example
+```text
+SMARD API
+   ↓
+raw.smard_timeseries_long
+   ↓
+core.energy_hourly
+   ↓
+mart.energy_features_hourly
+   ↓
+mart.energy_summary_daily
 ```
 
 ---
 
-## 🚧 Current Phase
+## Current Phase
 
-**Phase 1 — Data Engineering Pipeline**
+## Phase 1 — Functional and Validated Locally
 
-Scope:
+The pipeline is working end-to-end.
 
-* Ingestion (SMARD API)
-* Cleaning and normalization
-* Feature engineering (energy domain features)
-* Daily aggregation tables
-* Batch pipeline (local + Airflow)
+Implemented:
+
+* SMARD API client
+* timestamp index fetching
+* timeseries extraction
+* JSON normalization
+* raw upsert into PostgreSQL
+* core table build from raw
+* feature engineering from core
+* daily summary build from features
+* validation runner
+* smoke check runner
+* local Phase 1 pipeline runner
 
 ---
 
-## 📊 Data Scope (Phase 1)
+## Data Scope
 
-### Market & Demand
+### Market and demand
 
 * price (DE-LU)
 * load (DE)
 * residual_load_smard (DE)
 
-### Renewable Generation
+### Renewable generation
 
 * solar
 * wind_onshore
@@ -74,99 +81,95 @@ Scope:
 * biomass
 * hydro
 
-### Conventional Generation
+### Conventional generation
 
 * lignite
 * hard_coal
 * gas
 * other_conventional
 
-Resolution: Hourly
-Timezone: Europe/Berlin (with UTC storage)
+Resolution: hourly
+Storage: UTC
+Reporting helpers: Berlin-local time fields
 
 ---
 
-## 🧠 Planned Feature Engineering
-
-* coal = lignite + hard_coal
-* renewable_generation
-* fossil_generation
-* total_generation_selected
-* renewable_share
-* fossil_share
-* residual_load (calculated)
-* time features:
-
-  * date_berlin
-  * hour_of_day
-  * day_of_week
-  * is_weekend
-
----
-
-## 🗄️ Planned Tables
+## Tables
 
 ### raw.smard_timeseries_long
 
-Normalized API data (long format)
+Normalized raw ingestion table.
 
 ### core.energy_hourly
 
-Merged hourly dataset (clean base table)
+Merged hourly base dataset.
 
 ### mart.energy_features_hourly
 
-Feature-engineered hourly dataset
+Feature-engineered hourly dataset.
 
 ### mart.energy_summary_daily
 
-Daily aggregated metrics
+Berlin-local daily aggregation dataset.
 
 ---
 
-## ✅ Completed
+## Completed
 
-* [x] WSL2 + Ubuntu setup
-* [x] Docker Desktop installed and configured
-* [x] Airflow container running
-* [x] PostgreSQL container running
-* [x] Python environment (venv) created in WSL
-* [x] Core project folder structure initialized
-* [x] VS Code configured in WSL mode
-* [x] requirements.txt created
-
----
-
-## 🔄 In Progress
-
-* [ ] Config files (`smard_filters.yml`, `settings.py`)
-* [ ] SMARD API client (`smard_client.py`)
-
----
-
-## ⏭️ Next Steps (Immediate)
-
-1. Create `config/smard_filters.yml`
-2. Create `config/settings.py`
-3. Convert notebook logic → `src/clients/smard_client.py`
-4. Test single series data fetch
-5. Begin extraction module (`fetch_index.py`)
+* [x] PostgreSQL setup (Docker)
+* [x] Python environment (WSL)
+* [x] Project structure
+* [x] Config files
+* [x] SMARD API client
+* [x] Raw table schema
+* [x] Core and mart schemas
+* [x] Ordered DB bootstrap
+* [x] Idempotent raw upsert
+* [x] Core table build
+* [x] Feature table build
+* [x] Daily summary build
+* [x] Schema-stable loading (truncate + append)
+* [x] Validation utilities
+* [x] Local Phase 1 runner
+* [x] Validation runner script
+* [x] Smoke check script
+* [x] Incremental ingestion by latest batch timestamp
 
 ---
 
-## 📌 Notes
+## Validation Status
 
-* Initial development will use a small subset of data (e.g., last 60 days)
-* Pipeline will be tested locally before Airflow integration
-* Notebook logic will be gradually converted into modular Python scripts
-* Database will be the main output (CSV export optional)
+All validations passing:
+
+* tables are non-empty
+* renewable_share + fossil_share ≈ 1
+* residual load comparison is stable
+* reruns are idempotent
+* full pipeline run succeeds
+
+---
+
+## Immediate Next Steps
+
+1. Finalize documentation
+2. Optional: add visualizations or screenshots
+3. Decide on Airflow integration
+4. If yes → build DAG after pipeline is frozen
 
 ---
 
-## 🚀 Future (Phase 2 Preview)
+## Notes
 
-* Regression modeling (price vs residual load, renewables)
-* Predictions and evaluation
-* Additional analysis modules
+* Raw ingestion is incremental and idempotent
+* Downstream tables are rebuilt cleanly from raw
+* PostgreSQL runs in Docker
+* Airflow is not yet part of the runtime pipeline
 
 ---
+
+## Phase 2 Preview
+
+* regression modeling
+* price prediction
+* evaluation metrics
+* analytical dashboards

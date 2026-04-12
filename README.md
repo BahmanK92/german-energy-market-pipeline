@@ -1,167 +1,260 @@
 # ⚡ German Energy Market Pipeline (SMARD)
 
-## 📌 Overview
+## Overview
 
-This project builds a **production-style data pipeline** for the German electricity market using data from the SMARD API.
+This project builds a production-style data pipeline for the German electricity market using SMARD data.
 
-The pipeline ingests, processes, and aggregates hourly energy data to enable analysis of:
+Phase 1 focuses on:
 
-* electricity prices
-* demand (load)
-* renewable vs fossil generation
-* residual load dynamics
+* hourly SMARD ingestion
+* normalization into a raw table
+* DB-backed transformation into a core hourly table
+* feature engineering for energy-market analysis
+* daily summary aggregation
+* local pipeline execution with validations
 
----
-
-## 🎯 Objectives
-
-* Build a **real-world data engineering pipeline**
-* Work with **live, incremental data**
-* Apply **feature engineering based on energy domain knowledge**
-* Prepare data for **future modeling and prediction (Phase 2)**
+Phase 2 is reserved for analytics and modeling later.
 
 ---
 
-## 🏗️ Architecture
+## Phase 1 Scope
+
+The current Phase 1 pipeline covers these SMARD series:
+
+### Market and demand
+
+* price (DE-LU)
+* load (DE)
+* residual_load_smard (DE)
+
+### Renewable generation
+
+* solar
+* wind_onshore
+* wind_offshore
+* biomass
+* hydro
+
+### Conventional generation
+
+* lignite
+* hard_coal
+* gas
+* other_conventional
+
+Resolution: hourly
+Storage timezone: UTC
+Reporting helpers: Europe/Berlin
+
+---
+
+## Current Architecture
 
 ```text
 SMARD API
    ↓
-Extraction (Python)
+raw.smard_timeseries_long
    ↓
-Normalization (Pandas)
+core.energy_hourly
    ↓
-Core Hourly Table
+mart.energy_features_hourly
    ↓
-Feature Engineering
-   ↓
-Daily Summary Tables
-   ↓
-PostgreSQL (Docker)
-   ↓
-Airflow (planned)
+mart.energy_summary_daily
 ```
 
 ---
 
-## ⚙️ Tech Stack
+## Current Phase 1 Outputs
 
-* **Python** (pandas, requests, sqlalchemy)
-* **PostgreSQL** (Dockerized)
-* **Docker** (local infrastructure)
-* **Airflow** (planned orchestration)
-* **Git & GitHub**
-* **WSL (Linux environment on Windows)**
+### raw.smard_timeseries_long
 
----
+Normalized long-format SMARD observations with idempotent upsert logic.
 
-## 📊 Data Sources
+### core.energy_hourly
 
-* SMARD API (German electricity market data)
+Merged hourly base table built from raw data.
 
-Main data categories:
+### mart.energy_features_hourly
 
-* price (DE-LU)
-* load (DE)
-* renewable generation (solar, wind, biomass, hydro)
-* fossil generation (lignite, coal, gas)
-* residual load
+Feature-engineered hourly table with:
 
----
+* coal
+* renewable_generation
+* fossil_generation
+* total_generation_selected
+* renewable_share
+* fossil_share
+* residual_load
+* date/time features
 
-## 🔧 Pipeline Components (Phase 1)
+### mart.energy_summary_daily
 
-### Ingestion
+Berlin-local daily summary table with:
 
-* Fetch available timestamps
-* Retrieve raw SMARD time series data
-
-### Transformation
-
-* Normalize raw JSON → structured DataFrame
-* Merge all series into a unified hourly dataset
-
-### Feature Engineering
-
-* Renewable vs fossil generation
-* Coal aggregation (lignite + hard coal)
-* Residual load calculation
-* Time-based features
-
-### Aggregation
-
-* Daily summary tables:
-
-  * price statistics
-  * generation mix
-  * residual load metrics
+* avg/min/max price
+* avg load
+* total load estimate
+* renewable/fossil aggregates
+* residual load metrics
+* coal and gas averages
+* row_count_hours
 
 ---
 
-## 🗄️ Data Model
+## What Is Working Now
 
-### Tables
+Phase 1 is functional and DB-backed.
 
-* `raw.smard_timeseries_long` → normalized raw data
-* `core.energy_hourly` → merged hourly dataset
-* `mart.energy_features_hourly` → engineered features
-* `mart.energy_summary_daily` → daily aggregates
+Implemented and validated:
 
----
-
-## 🚀 Current Status
-
-✅ Phase 1 (Data Engineering) — **In Progress / Functional**
-
-* End-to-end local pipeline working
-* SMARD data ingestion implemented
-* Feature engineering completed
-* Daily aggregation completed
-* PostgreSQL integration working
+* SQL-controlled schemas and tables
+* ordered DB bootstrap
+* SMARD ingestion into raw layer
+* incremental raw loading by latest loaded batch timestamp
+* schema-stable loading for core/features/daily
+* local end-to-end Phase 1 runner
+* validation runner
+* smoke check runner
+* test coverage for bootstrap, core/features/daily stability, validations, and local runner
 
 ---
 
-## 🔮 Next Steps (Phase 2)
+## Tech Stack
 
-* Regression modeling (price vs residual load)
-* Prediction of electricity prices
-* Model evaluation
-* Extended analytical insights
+* Python
+* pandas
+* requests
+* SQLAlchemy
+* PostgreSQL (Docker)
+* Docker
+* WSL2 / Ubuntu
+* VS Code (WSL mode)
 
----
-
-## 🧠 Key Concepts
-
-* Residual Load Analysis
-* Renewable vs Fossil Energy Mix
-* Time Series Feature Engineering
-* Incremental Data Pipelines
+Note: PostgreSQL is currently running in Docker. Airflow orchestration is planned later.
 
 ---
 
-## ▶️ How to Run (Simplified)
+## Project Structure
+
+```text
+german-energy-market-pipeline/
+├─ airflow/
+│  └─ dags/
+├─ config/
+├─ sql/
+├─ scripts/
+├─ src/
+│  ├─ clients/
+│  ├─ extract/
+│  ├─ load/
+│  ├─ transform/
+│  ├─ utils/
+│  └─ viz/
+├─ tests/
+├─ docs/
+├─ README.md
+├─ PROJECT_STATUS.md
+├─ requirements.txt
+├─ docker-compose.yml
+└─ .env.example
+```
+
+---
+
+## How to Run
+
+### 1. Start PostgreSQL
 
 ```bash
-# activate environment
-source venv/bin/activate
+docker compose up -d
+```
 
-# run local pipeline
+### 2. Activate the environment
+
+```bash
+source venv/bin/activate
+```
+
+### 3. Bootstrap the database
+
+```bash
+python -m scripts.bootstrap_db
+```
+
+### 4. Run the local Phase 1 pipeline
+
+```bash
 python -m scripts.run_phase1_local
 ```
 
+### 5. Run the smoke check
+
+```bash
+python -m scripts.smoke_check_phase1
+```
+
 ---
 
-## 💡 Why This Project
+## Useful Commands
+
+### Rebuild downstream tables
+
+```bash
+python -m scripts.build_core_from_raw
+python -m scripts.build_features_from_core
+python -m scripts.build_daily_summary_from_features
+```
+
+### Run validations
+
+```bash
+python -m scripts.run_phase1_validations
+```
+
+### Run raw ingestion only
+
+```bash
+python -m scripts.backfill_smard
+```
+
+### Run end-to-end test
+
+```bash
+python -m tests.test_run_phase1_local
+```
+
+---
+
+## Current Status
+
+Phase 1 is working locally with:
+
+* incremental raw ingestion
+* DB-backed transformations
+* validation checks
+* schema-stable loads
+* daily summary outputs
+
+Remaining Phase 1 polish:
+
+* documentation refinement
+* optional Airflow DAG
+* optional visualization layer
+
+---
+
+## Why This Project
 
 This project demonstrates:
 
-* practical data engineering skills
-* working with real-world energy data
-* building reproducible pipelines
-* structuring data for analytics and modeling
+* practical data engineering with real-world data
+* warehouse-style pipeline design
+* incremental ingestion patterns
+* reproducible local execution
+* preparation for analytics and modeling
 
 ---
 
-## 📬 Author
+## Author
 
 Bahman Kheradmandi
