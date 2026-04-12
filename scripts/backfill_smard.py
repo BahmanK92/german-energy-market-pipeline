@@ -1,5 +1,7 @@
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, List, Optional
+
 from sqlalchemy import text
 
 from src.clients.smard_client import SmardClient
@@ -28,50 +30,24 @@ DEFAULT_SERIES_KEYS = [
     "lignite",
     "hard_coal",
     "gas",
-    "other_conventional",]
+    "other_conventional",
+]
+
+DEFAULT_HISTORY_YEARS = 2
 
 
-def choose_incremental_batch_timestamps(
-    client: SmardClient,
-    engine,
-    series_key: str,
-    limit: Optional[int] = None,
-) -> List[int]:
+def get_history_cutoff_timestamp(years: int = DEFAULT_HISTORY_YEARS) -> int:
     """
-    Return only the complete batch timestamps that are newer than the
-    latest already-loaded batch for this series.
+    Return a UTC unix timestamp in milliseconds representing the earliest
+    batch timestamp we want to load.
 
-    Rules:
-    - skip the newest SMARD timestamp because it may still be open/incomplete
-    - only return timestamps greater than the latest loaded timestamp
-    - if limit is provided, keep only the latest N of those missing timestamps
+    Example:
+    - years=2 means only keep batches from the last 2 years onward.
     """
-    timestamps = client.get_available_timestamps(series_key)
+    now_utc = datetime.now(timezone.utc)
+    cutoff_dt = now_utc - timedelta(days=365 * years)
+    return int(cutoff_dt.timestamp() * 1000)
 
-    if len(timestamps) < 2:
-        raise ValueError(f"Not enough timestamps available for series '{series_key}'")
-
-    complete_timestamps = timestamps[:-1]
-
-    latest_loaded = get_latest_loaded_batch_timestamp(engine=engine, series_key=series_key)
-
-    if latest_loaded is None:
-        missing_timestamps = complete_timestamps
-    else:
-        missing_timestamps = [ts for ts in complete_timestamps if ts > latest_loaded]
-
-    if limit is not None:
-        missing_timestamps = missing_timestamps[-limit:]
-
-    logger.info(
-        "Series '%s': latest_loaded=%s, complete_available=%s, missing_to_load=%s",
-        series_key,
-        latest_loaded,
-        len(complete_timestamps),
-        len(missing_timestamps),
-    )
-
-    return missing_timestamps
 
 def get_latest_loaded_batch_timestamp(
     engine,
@@ -94,9 +70,60 @@ def get_latest_loaded_batch_timestamp(
 
     return int(result) if result is not None else None
 
+
+def choose_incremental_batch_timestamps(
+    client: SmardClient,
+    engine,
+    series_key: str,
+    limit: Optional[int] = None,
+    history_years: int = DEFAULT_HISTORY_YEARS,
+) -> List[int]:
+    """
+    Return only the complete batch timestamps we want to load.
+
+    Rules:
+    - skip the newest SMARD timestamp because it may still be open/incomplete
+    - never go older than the configured history window
+    - only return timestamps greater than the latest already-loaded batch
+    - if limit is provided, keep only the latest N of those missing timestamps
+    """
+    timestamps = client.get_available_timestamps(series_key)
+
+    if len(timestamps) < 2:
+        raise ValueError(f"Not enough timestamps available for series '{series_key}'")
+
+    # Skip newest possibly incomplete batch
+    complete_timestamps = timestamps[:-1]
+
+    cutoff_timestamp = get_history_cutoff_timestamp(years=history_years)
+    complete_timestamps = [ts for ts in complete_timestamps if ts >= cutoff_timestamp]
+
+    latest_loaded = get_latest_loaded_batch_timestamp(engine=engine, series_key=series_key)
+
+    if latest_loaded is None:
+        missing_timestamps = complete_timestamps
+    else:
+        missing_timestamps = [ts for ts in complete_timestamps if ts > latest_loaded]
+
+    if limit is not None:
+        missing_timestamps = missing_timestamps[-limit:]
+
+    logger.info(
+        "Series '%s': latest_loaded=%s, cutoff_timestamp=%s, complete_available_in_window=%s, missing_to_load=%s",
+        series_key,
+        latest_loaded,
+        cutoff_timestamp,
+        len(complete_timestamps),
+        len(missing_timestamps),
+    )
+
+    return missing_timestamps
+
+
 def backfill_smard(
     series_keys: Optional[Iterable[str]] = None,
     limit_per_series: Optional[int] = None,
+    history_years: int = DEFAULT_HISTORY_YEARS,
 ) -> None:
     """
     Backfill normalized SMARD batches into raw.smard_timeseries_long.
@@ -104,6 +131,7 @@ def backfill_smard(
     Default behavior:
     - load only complete timestamps
     - skip the newest possibly-open timestamp on SMARD
+    - keep only the last `history_years` worth of data
     - load only timestamps newer than what is already present in raw
     - optionally limit the number of missing timestamps per series for development
     """
@@ -116,9 +144,10 @@ def backfill_smard(
     series_keys = list(series_keys)
 
     logger.info(
-        "Starting SMARD backfill for %s series with limit_per_series=%s",
+        "Starting SMARD backfill for %s series with limit_per_series=%s and history_years=%s",
         len(series_keys),
         limit_per_series,
+        history_years,
     )
 
     total_batches = 0
@@ -130,6 +159,7 @@ def backfill_smard(
             engine=engine,
             series_key=series_key,
             limit=limit_per_series,
+            history_years=history_years,
         )
 
         if not timestamps:
@@ -165,4 +195,3 @@ def backfill_smard(
 
 if __name__ == "__main__":
     backfill_smard()
-    
