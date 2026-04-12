@@ -65,3 +65,17 @@ def write_dataframe(
         table_name,
     )
     
+def truncate_table(
+    engine: Engine,
+    table_name: str,
+    schema: str,
+) -> None:
+    """
+    Truncate a table while preserving its schema, constraints, and indexes.
+    """
+    sql = text(f"TRUNCATE TABLE {schema}.{table_name};")
+
+    with engine.begin() as conn:
+        conn.execute(sql)
+
+    logger.info("Truncated table %s.%s", schema, table_name)
