@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from airflow.models import DagBag
+import pytest
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 def test_smard_phase1_dag_import():
+    DagBag = pytest.importorskip("airflow.models").DagBag
+
     dag_folder = str(Path("airflow/dags").resolve())
     dagbag = DagBag(dag_folder=dag_folder, include_examples=False)
 
