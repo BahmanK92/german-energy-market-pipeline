@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from config.settings import SQL_DIR
 from src.load.postgres import execute_sql, get_engine
@@ -11,27 +12,35 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+SQL_FILES_IN_ORDER = [
+    "001_create_schemas.sql",
+    "002_create_raw_tables.sql",
+    "003_create_core_tables.sql",
+    "004_create_mart_tables.sql",
+    "005_indexes_constraints.sql",
+]
+
+
 def bootstrap_db() -> None:
     """
-    Create schemas and database objects needed for the pipeline.
+    Create schemas, tables, and indexes by executing SQL files in order.
     """
     engine = get_engine()
 
-    schema_sql = """
-    CREATE SCHEMA IF NOT EXISTS raw;
-    CREATE SCHEMA IF NOT EXISTS core;
-    CREATE SCHEMA IF NOT EXISTS mart;
-    """
-    execute_sql(engine, schema_sql)
-    logger.info("Schemas ensured successfully")
+    for filename in SQL_FILES_IN_ORDER:
+        sql_path = SQL_DIR / filename
 
-    raw_table_sql_path = SQL_DIR / "002_create_raw_tables.sql"
-    raw_table_sql = raw_table_sql_path.read_text(encoding="utf-8")
-    execute_sql(engine, raw_table_sql)
-    logger.info("Raw table ensured successfully")
+        if not sql_path.exists():
+            raise FileNotFoundError(f"SQL file not found: {sql_path}")
+
+        logger.info("Executing SQL file: %s", filename)
+
+        sql = sql_path.read_text(encoding="utf-8")
+        execute_sql(engine, sql)
+
+    logger.info("Database bootstrap completed successfully.")
 
 
 if __name__ == "__main__":
     bootstrap_db()
-    print("Schemas and raw table created or already existed")
-     
+    
