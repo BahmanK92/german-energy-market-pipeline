@@ -1,5 +1,6 @@
 import logging
 
+from scripts.run_phase1_validations import run_phase1_validations
 from scripts.backfill_smard import backfill_smard
 from scripts.build_core_from_raw import build_and_load_core_from_raw
 from scripts.build_features_from_core import build_and_load_features_from_core
@@ -23,6 +24,7 @@ def run_phase1_local() -> None:
     2. build core.energy_hourly from raw
     3. build mart.energy_features_hourly from core
     4. build mart.energy_summary_daily from features
+    5. run Phase 1 validations
     """
     logger.info("Starting DB-backed local Phase 1 pipeline run")
 
@@ -30,6 +32,7 @@ def run_phase1_local() -> None:
     build_and_load_core_from_raw()
     build_and_load_features_from_core()
     build_and_load_daily_summary_from_features()
+    run_phase1_validations()
 
     logger.info("DB-backed local Phase 1 pipeline run finished successfully")
 
