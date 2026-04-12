@@ -2,7 +2,7 @@ import logging
 
 import pandas as pd
 
-from src.load.postgres import get_engine
+from src.load.postgres import get_engine, truncate_table
 from src.transform.build_daily_summary import build_daily_summary
 
 logging.basicConfig(
@@ -25,12 +25,15 @@ def build_and_load_daily_summary_from_features() -> None:
 
     daily_df = build_daily_summary(features_df)
 
-    logger.info("Writing mart.energy_summary_daily ...")
+    logger.info("Truncating mart.energy_summary_daily ...")
+    truncate_table(engine=engine, table_name="energy_summary_daily", schema="mart")
+
+    logger.info("Appending rows into mart.energy_summary_daily ...")
     daily_df.to_sql(
         name="energy_summary_daily",
         con=engine,
         schema="mart",
-        if_exists="replace",
+        if_exists="append",
         index=False,
         method="multi",
     )
