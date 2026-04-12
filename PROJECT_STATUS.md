@@ -4,7 +4,7 @@
 
 Build a production-style data pipeline for Germany’s electricity market using SMARD data.
 
-Phase 1 goal:
+### Phase 1 goal:
 
 * ingest hourly SMARD data
 * store it in a raw PostgreSQL table
@@ -12,6 +12,7 @@ Phase 1 goal:
 * build engineered feature tables
 * build daily summary tables
 * validate the pipeline locally
+* run the pipeline through Airflow orchestration
 
 Phase 2 will focus on analytics and modeling.
 
@@ -23,7 +24,7 @@ Phase 2 will focus on analytics and modeling.
 * Development: VS Code (WSL mode)
 * Python: virtual environment in WSL
 * Database: PostgreSQL (Docker)
-* Orchestration: Airflow planned (not yet active)
+* Orchestration: Apache Airflow (Docker)
 
 ---
 
@@ -45,11 +46,13 @@ mart.energy_summary_daily
 
 ## Current Phase
 
-## Phase 1 — Functional and Validated Locally
+**Phase 1 — Execution Complete**
 
-The pipeline is working end-to-end.
+The pipeline is working end-to-end locally and through Airflow.
 
-Implemented:
+---
+
+## Implemented
 
 * SMARD API client
 * timestamp index fetching
@@ -62,6 +65,7 @@ Implemented:
 * validation runner
 * smoke check runner
 * local Phase 1 pipeline runner
+* Airflow DAG orchestration
 
 ---
 
@@ -88,9 +92,9 @@ Implemented:
 * gas
 * other_conventional
 
-Resolution: hourly
-Storage: UTC
-Reporting helpers: Berlin-local time fields
+**Resolution:** hourly
+**Storage:** UTC
+**Reporting helpers:** Berlin-local time fields
 
 ---
 
@@ -116,45 +120,54 @@ Berlin-local daily aggregation dataset.
 
 ## Completed
 
-* [x] PostgreSQL setup (Docker)
-* [x] Python environment (WSL)
-* [x] Project structure
-* [x] Config files
-* [x] SMARD API client
-* [x] Raw table schema
-* [x] Core and mart schemas
-* [x] Ordered DB bootstrap
-* [x] Idempotent raw upsert
-* [x] Core table build
-* [x] Feature table build
-* [x] Daily summary build
-* [x] Schema-stable loading (truncate + append)
-* [x] Validation utilities
-* [x] Local Phase 1 runner
-* [x] Validation runner script
-* [x] Smoke check script
-* [x] Incremental ingestion by latest batch timestamp
+* PostgreSQL setup (Docker)
+* Python environment (WSL)
+* Project structure
+* Config files
+* SMARD API client
+* Raw table schema
+* Core and mart schemas
+* Ordered DB bootstrap
+* Idempotent raw upsert
+* Core table build
+* Feature table build
+* Daily summary build
+* Schema-stable loading (truncate + append)
+* Validation utilities
+* Local Phase 1 runner
+* Validation runner script
+* Smoke check script
+* Incremental ingestion by latest batch timestamp
+* Default backfill limited to last 2 years
+* Airflow runtime setup
+* Airflow DAG visible in UI
+* Airflow DAG run successful
 
 ---
 
 ## Validation Status
 
-All validations passing:
+All key Phase 1 validations are passing:
 
 * tables are non-empty
 * renewable_share + fossil_share ≈ 1
 * residual load comparison is stable
 * reruns are idempotent
 * full pipeline run succeeds
+* Airflow DAG tasks succeed
 
 ---
 
-## Immediate Next Steps
+## Current Output State
 
-1. Finalize documentation
-2. Optional: add visualizations or screenshots
-3. Decide on Airflow integration
-4. If yes → build DAG after pipeline is frozen
+Latest verified state:
+
+* raw table populated
+* core hourly table populated
+* feature table populated
+* daily summary table populated
+* latest timestamps aligned
+* Airflow orchestration successful
 
 ---
 
@@ -162,13 +175,25 @@ All validations passing:
 
 * Raw ingestion is incremental and idempotent
 * Downstream tables are rebuilt cleanly from raw
+* Default historical backfill is limited to the last 2 years
 * PostgreSQL runs in Docker
-* Airflow is not yet part of the runtime pipeline
+* Airflow runs in Docker
+* `requirements-airflow.txt` is separated from local `requirements.txt` to avoid dependency conflicts
+
+---
+
+## Immediate Next Steps
+
+* Finalize Phase 1 documentation
+* Optionally add screenshots or small visualizations
+* Start Phase 2 analytics schema and modeling pipeline
+* Keep dashboard work for later in Phase 2
 
 ---
 
 ## Phase 2 Preview
 
+* analytics schema
 * regression modeling
 * price prediction
 * evaluation metrics

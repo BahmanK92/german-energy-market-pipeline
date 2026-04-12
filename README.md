@@ -4,22 +4,37 @@
 
 This project builds a production-style data pipeline for the German electricity market using SMARD data.
 
-Phase 1 focuses on:
+Phase 1 is now complete and includes:
 
 * hourly SMARD ingestion
-* normalization into a raw table
+* normalization into a raw PostgreSQL table
 * DB-backed transformation into a core hourly table
 * feature engineering for energy-market analysis
 * daily summary aggregation
-* local pipeline execution with validations
+* validation checks
+* local execution
+* Airflow orchestration
 
-Phase 2 is reserved for analytics and modeling later.
+Phase 2 is reserved for analytics and modeling.
+
+---
+
+## Project Status
+
+**Phase 1 execution is complete.**
+
+### Verified:
+
+* local pipeline run works end to end
+* smoke check passes
+* incremental raw ingestion works
+* Airflow runtime works
+* Airflow DAG runs successfully
+* default backfill scope is limited to the last 2 years
 
 ---
 
 ## Phase 1 Scope
-
-The current Phase 1 pipeline covers these SMARD series:
 
 ### Market and demand
 
@@ -42,13 +57,13 @@ The current Phase 1 pipeline covers these SMARD series:
 * gas
 * other_conventional
 
-Resolution: hourly
-Storage timezone: UTC
-Reporting helpers: Europe/Berlin
+**Resolution:** hourly
+**Storage timezone:** UTC
+**Reporting helpers:** Europe/Berlin
 
 ---
 
-## Current Architecture
+## Architecture
 
 ```text
 SMARD API
@@ -64,7 +79,7 @@ mart.energy_summary_daily
 
 ---
 
-## Current Phase 1 Outputs
+## Output Tables
 
 ### raw.smard_timeseries_long
 
@@ -85,7 +100,7 @@ Feature-engineered hourly table with:
 * renewable_share
 * fossil_share
 * residual_load
-* date/time features
+* date/time helper fields
 
 ### mart.energy_summary_daily
 
@@ -101,21 +116,21 @@ Berlin-local daily summary table with:
 
 ---
 
-## What Is Working Now
+## What Is Working
 
-Phase 1 is functional and DB-backed.
-
-Implemented and validated:
+Implemented and verified:
 
 * SQL-controlled schemas and tables
 * ordered DB bootstrap
 * SMARD ingestion into raw layer
 * incremental raw loading by latest loaded batch timestamp
+* 2-year historical backfill limit by default
 * schema-stable loading for core/features/daily
 * local end-to-end Phase 1 runner
 * validation runner
 * smoke check runner
-* test coverage for bootstrap, core/features/daily stability, validations, and local runner
+* Airflow DAG orchestration
+* test coverage for key Phase 1 flows
 
 ---
 
@@ -126,11 +141,10 @@ Implemented and validated:
 * requests
 * SQLAlchemy
 * PostgreSQL (Docker)
+* Apache Airflow (Docker)
 * Docker
 * WSL2 / Ubuntu
 * VS Code (WSL mode)
-
-Note: PostgreSQL is currently running in Docker. Airflow orchestration is planned later.
 
 ---
 
@@ -139,7 +153,9 @@ Note: PostgreSQL is currently running in Docker. Airflow orchestration is planne
 ```text
 german-energy-market-pipeline/
 ├─ airflow/
-│  └─ dags/
+│  ├─ dags/
+│  ├─ logs/
+│  └─ plugins/
 ├─ config/
 ├─ sql/
 ├─ scripts/
@@ -155,15 +171,16 @@ german-energy-market-pipeline/
 ├─ README.md
 ├─ PROJECT_STATUS.md
 ├─ requirements.txt
+├─ requirements-airflow.txt
 ├─ docker-compose.yml
 └─ .env.example
 ```
 
 ---
 
-## How to Run
+## How to Run Locally
 
-### 1. Start PostgreSQL
+### 1. Start services
 
 ```bash
 docker compose up -d
@@ -181,7 +198,7 @@ source venv/bin/activate
 python -m scripts.bootstrap_db
 ```
 
-### 4. Run the local Phase 1 pipeline
+### 4. Run the full local Phase 1 pipeline
 
 ```bash
 python -m scripts.run_phase1_local
@@ -217,44 +234,63 @@ python -m scripts.run_phase1_validations
 python -m scripts.backfill_smard
 ```
 
-### Run end-to-end test
+### Run key tests
 
 ```bash
-python -m tests.test_run_phase1_local
+pytest tests/test_run_phase1_local.py -v
+pytest tests/test_smoke_check_phase1.py -v
+pytest tests/test_backfill_incremental.py -v
+pytest tests/test_smard_phase1_dag_import.py -v
 ```
 
 ---
 
-## Current Status
+## Airflow
 
-Phase 1 is working locally with:
+### Start services
 
-* incremental raw ingestion
-* DB-backed transformations
-* validation checks
-* schema-stable loads
-* daily summary outputs
+```bash
+docker compose up -d
+```
 
-Remaining Phase 1 polish:
+### Airflow UI
 
-* documentation refinement
-* optional Airflow DAG
-* optional visualization layer
+http://localhost:8080
+
+**Default login:**
+
+* username: airflow
+* password: airflow
+
+**DAG:** `smard_phase1_pipeline`
 
 ---
 
-## Why This Project
+## Dependency Notes
 
-This project demonstrates:
+* `requirements.txt` → local development
+* `requirements-airflow.txt` → Airflow containers
 
-* practical data engineering with real-world data
-* warehouse-style pipeline design
-* incremental ingestion patterns
-* reproducible local execution
-* preparation for analytics and modeling
+This separation avoids dependency conflicts.
+
+---
+
+## Backfill Rule
+
+The default Phase 1 backfill window is limited to the last 2 years.
+
+---
+
+## Phase 2 Preview
+
+* analytics schema
+* regression modeling
+* prediction outputs
+* evaluation metrics
+* dashboard layer
 
 ---
 
 ## Author
 
-Bahman Kheradmandi
+**Bahman Kheradmandi**
