@@ -182,15 +182,6 @@ Latest verified state:
 
 ---
 
-## Immediate Next Steps
-
-* Finalize Phase 1 documentation
-* Optionally add screenshots or small visualizations
-* Start Phase 2 analytics schema and modeling pipeline
-* Keep dashboard work for later in Phase 2
-
----
-
 ## Phase 2 Preview
 
 * analytics schema

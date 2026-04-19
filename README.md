@@ -79,6 +79,106 @@ mart.energy_summary_daily
 
 ---
 
+## 🔄 Architecture & Data Flow Explanation
+
+The pipeline follows a layered data engineering design, where each stage has a clear responsibility and builds on the previous one.
+
+### 1. Ingestion (SMARD API → raw layer)
+
+Data is fetched from the SMARD API in batch form (per timestamp and series).
+Each batch is normalized into a long-format structure and written into:
+
+* `raw.smard_timeseries_long`
+
+Key characteristics:
+
+* incremental loading (only new batches are fetched)
+* idempotent upserts (no duplicates on reruns)
+* raw data remains close to source structure
+
+---
+
+### 2. Core Transformation (raw → core)
+
+The raw long-format data is transformed into a wide, analysis-ready hourly table:
+
+* `core.energy_hourly`
+
+What happens here:
+
+* time series are pivoted into columns (e.g. price, load, solar, wind)
+* all series are aligned on `datetime_utc`
+* Berlin-local time features are derived (`datetime_berlin`, `hour_of_day`, etc.)
+
+This table represents the **clean, unified base dataset**.
+
+---
+
+### 3. Feature Engineering (core → features)
+
+From the core table, domain-specific features are created:
+
+* `mart.energy_features_hourly`
+
+Examples:
+
+* renewable vs fossil generation
+* energy shares (renewable_share, fossil_share)
+* residual load calculation
+* weekday/weekend indicators
+
+This layer prepares the data for **analytics and modeling**.
+
+---
+
+### 4. Aggregation (features → daily)
+
+Hourly data is aggregated into daily metrics:
+
+* `mart.energy_summary_daily`
+
+Examples:
+
+* average / min / max price
+* total load estimates
+* average renewable and fossil shares
+
+This layer provides **business-level insights**.
+
+---
+
+### 5. Validation
+
+After all transformations, validation checks ensure data quality:
+
+* tables are non-empty
+* no duplicate keys
+* renewable_share + fossil_share ≈ 1
+* residual load calculations are consistent
+
+---
+
+### 6. Orchestration (Airflow)
+
+All steps are orchestrated via the Airflow DAG:
+
+`smard_phase1_pipeline`
+
+Execution order:
+
+```
+bootstrap_db
+→ backfill_smard
+→ build_core
+→ build_features
+→ build_daily_summary
+→ run_validations
+```
+
+This ensures the pipeline runs reliably and in the correct order in a production environment.
+
+---
+
 ## Output Tables
 
 ### raw.smard_timeseries_long
@@ -175,6 +275,28 @@ german-energy-market-pipeline/
 ├─ docker-compose.yml
 └─ .env.example
 ```
+---
+
+### Pipeline Evolution
+
+Phase 1 of this project was developed in two stages:
+
+#### 1. Initial (in-memory) pipeline
+
+* Built for rapid development and experimentation
+* Runs entirely in Python using pandas
+* Entry point: `run_pipeline()` (deprecated for production use)
+
+#### 2. Production pipeline (current)
+
+* Uses PostgreSQL as the source of truth
+* Incremental ingestion into `raw` layer
+* Downstream tables (`core`, `features`, `daily`) rebuilt from raw
+* Orchestrated via Airflow DAG: `smard_phase1_pipeline`
+
+👉 **Important:**
+The Airflow DAG and DB-backed scripts represent the production pipeline.
+The in-memory pipeline is kept only for development/testing reference.
 
 ---
 
